@@ -1,91 +1,83 @@
+"""Handlers for investment-related commands"""
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from services.service_factory import ServiceFactory
-from decimal import Decimal
+from services.investment_analyzer import InvestmentAnalyzer
+from services.auto_investor import AutoInvestor
+from services.binance_client import BinanceClient
+from config import BINANCE_API_KEY, BINANCE_API_SECRET
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Initialize services
-service_factory = ServiceFactory()
-investment_service = service_factory.investment_service
+# Initialize router and services
+router = Router()
+binance_client = BinanceClient(BINANCE_API_KEY, BINANCE_API_SECRET)
+investment_analyzer = InvestmentAnalyzer(binance_client)
+auto_investor = AutoInvestor(binance_client, investment_analyzer)
+
+INVESTMENT_HELP_MESSAGE = """
+💰 Investment Commands:
+
+/analyze - Analyze best investment opportunities
+/auto_invest - Toggle automatic investment mode
+/investments - Show your active investments
+/investment_help - Show this help message
+
+Note: All operations use testnet - no real funds are involved.
+"""
 
 
-class InvestmentStates(StatesGroup):
-    choosing_coin = State()
-    entering_amount = State()
-    confirming_investment = State()
-    choosing_exchange_from = State()
-    choosing_exchange_to = State()
-    entering_exchange_amount = State()
+@router.message(Command("investment_help"))
+async def cmd_investment_help(message: types.Message):
+    """Show investment help message"""
+    await message.answer(INVESTMENT_HELP_MESSAGE)
 
 
-def register_investment_handlers(router: Router) -> None:
-    """Register investment-related command handlers"""
+@router.message(Command("analyze"))
+async def cmd_analyze(message: types.Message):
+    """Analyze investment opportunities"""
+    try:
+        status_message = await message.answer("🔄 Analyzing investment opportunities...")
+        result = await investment_analyzer.analyze_opportunities()
 
-    @router.message(Command("invest"))
-    async def cmd_invest(message: types.Message, state: FSMContext):
-        """Start investment process"""
-        coins = await investment_service.get_available_coins()
+        await status_message.edit_text(result["message"])
 
-        if not coins:
-            await message.answer("❌ No coins available for investment at the moment")
-            return
+    except Exception as e:
+        logger.error(f"Error in analyze command: {str(e)}")
+        await message.answer("❌ Failed to analyze investment opportunities")
 
-        keyboard = types.ReplyKeyboardMarkup(
-            keyboard=[[types.KeyboardButton(text=coin)] for coin in coins],
-            resize_keyboard=True
-        )
 
-        await state.set_state(InvestmentStates.choosing_coin)
-        await message.answer(
-            "Choose a coin to invest:",
-            reply_markup=keyboard
-        )
+@router.message(Command("auto_invest"))
+async def cmd_auto_invest(message: types.Message):
+    """Toggle auto-investment mode"""
+    try:
+        is_enabled = auto_investor.toggle_auto_invest()
 
-    @router.message(Command("investments"))
-    async def cmd_investments(message: types.Message):
-        """Show active investments"""
-        positions = await investment_service.get_active_investments()
-
-        if not positions:
-            await message.answer("No active investments found")
-            return
-
-        response = "Your Active Investments:\n\n"
-        for pos in positions:
-            response += (
-                f"🪙 {pos.coin}\n"
-                f"Amount: {pos.amount}\n"
-                f"APY: {pos.apy}%\n"
-                f"Type: {pos.product_type.value}\n\n"
+        if is_enabled:
+            status_message = await message.answer(
+                "✅ Auto-investment mode enabled\n"
+                "🔄 Checking investment opportunities..."
             )
 
-        await message.answer(response)
+            result = await auto_investor.check_and_invest()
+            await status_message.edit_text(result["message"])
+        else:
+            await message.answer("❌ Auto-investment mode disabled")
 
-    @router.message(Command("exchange"))
-    async def cmd_exchange(message: types.Message, state: FSMContext):
-        """Start coin exchange process"""
-        coins = await investment_service.get_available_coins()
+    except Exception as e:
+        logger.error(f"Error in auto_invest command: {str(e)}")
+        await message.answer("❌ Failed to toggle auto-investment mode")
 
-        if not coins:
-            await message.answer("❌ No coins available for exchange")
-            return
 
-        keyboard = types.ReplyKeyboardMarkup(
-            keyboard=[[types.KeyboardButton(text=coin)] for coin in coins],
-            resize_keyboard=True
-        )
+@router.message(Command("investments"))
+async def cmd_investments(message: types.Message):
+    """Show active investments"""
+    try:
+        status_message = await message.answer("🔄 Fetching your investments...")
+        result = await auto_investor.get_active_investments()
 
-        await state.set_state(InvestmentStates.choosing_exchange_from)
-        await message.answer(
-            "Choose coin to exchange from:",
-            reply_markup=keyboard
-        )
+        await status_message.edit_text(result["message"])
 
-    @router.message(Command("auto_invest"))
-    async def cmd_auto_invest(message: types.Message):
-        """Toggle auto-investment mode"""
-        await message.answer("Auto-investment mode is not implemented yet")
+    except Exception as e:
+        logger.error(f"Error in investments command: {str(e)}")
+        await message.answer("❌ Failed to fetch investments")

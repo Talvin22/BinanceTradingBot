@@ -71,7 +71,8 @@ class BinanceClient:
                     "message": (
                         "💰 Testnet Wallet is empty\n\n"
                         "Use /get_funds to request test funds"
-                    )
+                    ),
+                    "available_amount": "0"
                 }
 
             # Split balances into chunks
@@ -81,10 +82,17 @@ class BinanceClient:
             if len(messages) > 1:
                 messages[0] += f"\n\n(Showing {len(messages)} parts. Additional balances in next messages)"
 
+            # Get USDT balance for investment calculations
+            usdt_balance = next(
+                (b for b in non_zero if b['asset'] == 'USDT'),
+                {'free': '0'}
+            )
+
             return {
                 "status": "success",
                 "message": messages[0],
-                "additional_messages": messages[1:] if len(messages) > 1 else []
+                "additional_messages": messages[1:] if len(messages) > 1 else [],
+                "available_amount": usdt_balance['free']
             }
 
         except BinanceAPIException as e:
@@ -182,3 +190,126 @@ class BinanceClient:
                 "message": "❌ Failed to request test funds"
             }
 
+    async def get_staking_products(self) -> List[Dict]:
+        """Get available staking products"""
+        try:
+            # In testnet, we'll simulate some staking products
+            return [
+                {
+                    'id': 'STAKE_BTC_30',
+                    'asset': 'BTC',
+                    'apy': '5.20',
+                    'duration': '30',
+                    'minAmount': '0.001',
+                    'maxAmount': '1.000'
+                },
+                {
+                    'id': 'STAKE_ETH_60',
+                    'asset': 'ETH',
+                    'apy': '4.80',
+                    'duration': '60',
+                    'minAmount': '0.01',
+                    'maxAmount': '10.000'
+                },
+                {
+                    'id': 'STAKE_BNB_90',
+                    'asset': 'BNB',
+                    'apy': '8.40',
+                    'duration': '90',
+                    'minAmount': '0.1',
+                    'maxAmount': '100.000'
+                }
+            ]
+        except Exception as e:
+            logger.error(f"Error fetching staking products: {str(e)}")
+            return []
+
+    async def get_savings_products(self) -> List[Dict]:
+        """Get available savings products"""
+        try:
+            # In testnet, we'll simulate some savings products
+            return [
+                {
+                    'id': 'SAVE_USDT_FLEX',
+                    'asset': 'USDT',
+                    'interestRate': '3.50',
+                    'duration': '0',  # Flexible
+                    'minAmount': '100',
+                    'maxAmount': '100000'
+                },
+                {
+                    'id': 'SAVE_BUSD_30',
+                    'asset': 'BUSD',
+                    'interestRate': '4.20',
+                    'duration': '30',
+                    'minAmount': '100',
+                    'maxAmount': '50000'
+                }
+            ]
+        except Exception as e:
+            logger.error(f"Error fetching savings products: {str(e)}")
+            return []
+
+    async def get_launchpool_products(self) -> List[Dict]:
+        """Get available launchpool products"""
+        try:
+            # In testnet, we'll simulate some launchpool products
+            return [
+                {
+                    'id': 'POOL_NEW_TOKEN',
+                    'asset': 'NEW',
+                    'apy': '120.00',  # High APY for new token
+                    'duration': '14',
+                    'minAmount': '10',
+                    'maxAmount': '1000'
+                }
+            ]
+        except Exception as e:
+            logger.error(f"Error fetching launchpool products: {str(e)}")
+            return []
+
+    async def stake_coins(self, product_id: str, amount: Decimal) -> Dict[str, str]:
+        """Stake coins in a product"""
+        try:
+            # In testnet, we'll simulate staking
+            return {
+                "status": "success",
+                "message": (
+                    "✅ Test staking successful!\n\n"
+                    f"Product ID: {product_id}\n"
+                    f"Amount: {amount}\n\n"
+                    "Note: This is a testnet operation"
+                )
+            }
+        except Exception as e:
+            logger.error(f"Error staking coins: {str(e)}")
+            return {
+                "status": "error",
+                "message": "❌ Failed to stake coins"
+            }
+
+    async def get_staking_positions(self) -> List[Dict]:
+        """Get current staking positions"""
+        try:
+            # In testnet, we'll simulate some staking positions
+            return [
+                {
+                    'asset': 'BTC',
+                    'amount': '0.05',
+                    'apy': '5.20',
+                    'duration': '30',
+                    'type': 'STAKING',
+                    'status': 'ACTIVE'
+                },
+                {
+                    'asset': 'ETH',
+                    'amount': '1.5',
+                    'apy': '4.80',
+                    'duration': '60',
+                    'type': 'STAKING',
+                    'status': 'ACTIVE'
+                }
+            ]
+        except Exception as e:
+            logger.error(f"Error fetching staking positions: {str(e)}")
+            return []
