@@ -26,6 +26,8 @@ TRADING_HELP_MESSAGE = """
 /test_buy - Test buying coins (using testnet)
 /test_sell - Test selling coins (using testnet)
 /cancel - Cancel current operation
+/investments - to show all of you active investments
+/auto_invest - make your investments auto-invest
 
 Note: All operations use testnet - no real funds are involved.
 """
